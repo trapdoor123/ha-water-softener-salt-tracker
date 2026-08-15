@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Water Softener Salt Tracker Configuration",
+        "description": "Configure tracking parameters based on your water meter and softener specifications.",
+        "data": {
+          "name": "Integration Name",
+          "water_meter_sensor": "Water Meter Sensor (Total Increasing)",
+          "salt_capacity": "Total Salt Capacity (kg)",
+          "consumption_rate": "Consumption Rate (g salt per Litre)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Salt Tracker Settings",
+        "data": {
+          "salt_capacity": "Total Salt Capacity (kg)",
+          "consumption_rate": "Consumption Rate (g salt per Litre)"
+        }
+      }
+    }
+  }
+}

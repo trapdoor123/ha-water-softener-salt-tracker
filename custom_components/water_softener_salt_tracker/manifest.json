@@ -1,0 +1,11 @@
+{
+  "domain": "water_softener_salt_tracker",
+  "name": "Water Softener Salt Tracker",
+  "codeowners": ["@trapdoor123"],
+  "config_flow": true,
+  "documentation": "https://github.com/trapdoor123/ha-water-softener-salt-tracker",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/trapdoor123/ha-water-softener-salt-tracker/issues",
+  "version": "1.0.0"
+}
