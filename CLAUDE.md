@@ -23,7 +23,8 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
     │       ├── const.py          # Domain constants & default calibration values
     │       ├── manifest.json     # Integration metadata & version
     │       ├── sensor.py         # 4 diagnostic/tracking sensor entities
-    │       └── strings.json      # UI labels for config & options flows
+    │       └── translations/
+    │           └── en.json       # UI labels for config & options flows, repair issues
     ├── .gitignore
     ├── CLAUDE.md                 # Project context for Claude Code
     ├── hacs.json                 # HACS repository metadata

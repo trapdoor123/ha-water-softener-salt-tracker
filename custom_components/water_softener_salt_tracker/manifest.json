@@ -7,5 +7,5 @@
   "integration_type": "helper",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/trapdoor123/ha-water-softener-salt-tracker/issues",
-  "version": "1.0.2"
+  "version": "1.0.3"
 }

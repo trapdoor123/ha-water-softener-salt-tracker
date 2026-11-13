@@ -8,19 +8,12 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfMass, UnitOfVolume
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import (
-    CONF_CONSUMPTION_RATE,
-    CONF_SALT_CAPACITY,
-    CONF_WATER_METER_SENSOR,
-    DEFAULT_CONSUMPTION_RATE,
-    DEFAULT_SALT_CAPACITY,
-    DOMAIN,
-)
+from . import SoftenerDataCoordinator
+from .const import DOMAIN
 
 
 async def async_setup_entry(
@@ -30,12 +23,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    water_meter = entry.data[CONF_WATER_METER_SENSOR]
 
     entities = [
-        WaterSoftenerProcessedSensor(coordinator, entry, water_meter),
-        WaterSoftenerSaltRemainingSensor(coordinator, entry, water_meter),
-        WaterSoftenerSaltLevelSensor(coordinator, entry, water_meter),
+        WaterSoftenerProcessedSensor(coordinator, entry),
+        WaterSoftenerSaltRemainingSensor(coordinator, entry),
+        WaterSoftenerSaltLevelSensor(coordinator, entry),
         WaterSoftenerLastRefillSensor(coordinator, entry),
     ]
 
@@ -43,11 +35,16 @@ async def async_setup_entry(
 
 
 class BaseSoftenerSensor(SensorEntity):
-    """Base class for softener entities."""
+    """Base class for softener entities.
+
+    The coordinator tracks the upstream water meter and calls every registered
+    listener when the meter changes or the salt level is reset.
+    """
 
     _attr_has_entity_name = True
+    _attr_should_poll = False
 
-    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
         self.coordinator = coordinator
         self.entry = entry
         self._attr_device_info = DeviceInfo(
@@ -66,15 +63,6 @@ class BaseSoftenerSensor(SensorEntity):
         if self.async_write_ha_state in self.coordinator.listeners:
             self.coordinator.listeners.remove(self.async_write_ha_state)
 
-    def _get_current_meter_value(self, entity_id: str) -> float:
-        state = self.hass.states.get(entity_id)
-        if state is None or state.state in ("unknown", "unavailable"):
-            return self.coordinator.baseline_reading
-        try:
-            return float(state.state)
-        except ValueError:
-            return self.coordinator.baseline_reading
-
 
 class WaterSoftenerProcessedSensor(BaseSoftenerSensor):
     """Tracks litres processed since last salt refill."""
@@ -84,27 +72,16 @@ class WaterSoftenerProcessedSensor(BaseSoftenerSensor):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfVolume.LITERS
 
-    def __init__(self, coordinator, entry: ConfigEntry, water_meter: str) -> None:
+    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._water_meter = water_meter
         self._attr_unique_id = f"{entry.entry_id}_water_processed"
 
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass, [self._water_meter], self._on_meter_update
-            )
-        )
-
-    @callback
-    def _on_meter_update(self, event) -> None:
-        self.async_write_ha_state()
-
     @property
-    def native_value(self) -> float:
-        current = self._get_current_meter_value(self._water_meter)
-        return max(round(current - self.coordinator.baseline_reading, 1), 0.0)
+    def native_value(self) -> float | None:
+        water_used = self.coordinator.water_used
+        if water_used is None:
+            return None
+        return round(water_used, 1)
 
 
 class WaterSoftenerSaltRemainingSensor(BaseSoftenerSensor):
@@ -114,40 +91,16 @@ class WaterSoftenerSaltRemainingSensor(BaseSoftenerSensor):
     _attr_native_unit_of_measurement = UnitOfMass.KILOGRAMS
     _attr_icon = "mdi:shaker-outline"
 
-    def __init__(self, coordinator, entry: ConfigEntry, water_meter: str) -> None:
+    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._water_meter = water_meter
         self._attr_unique_id = f"{entry.entry_id}_salt_remaining"
 
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass, [self._water_meter], self._on_meter_update
-            )
-        )
-
-    @callback
-    def _on_meter_update(self, event) -> None:
-        self.async_write_ha_state()
-
     @property
-    def native_value(self) -> float:
-        capacity = self.entry.options.get(
-            CONF_SALT_CAPACITY,
-            self.entry.data.get(CONF_SALT_CAPACITY, DEFAULT_SALT_CAPACITY),
-        )
-        rate = (
-            self.entry.options.get(
-                CONF_CONSUMPTION_RATE,
-                self.entry.data.get(CONF_CONSUMPTION_RATE, DEFAULT_CONSUMPTION_RATE),
-            )
-            / 1000.0
-        )
-        current = self._get_current_meter_value(self._water_meter)
-        water_used = max(current - self.coordinator.baseline_reading, 0.0)
-        remaining = capacity - (water_used * rate)
-        return max(round(remaining, 2), 0.0)
+    def native_value(self) -> float | None:
+        remaining = self.coordinator.salt_remaining
+        if remaining is None:
+            return None
+        return round(remaining, 2)
 
 
 class WaterSoftenerSaltLevelSensor(BaseSoftenerSensor):
@@ -157,42 +110,19 @@ class WaterSoftenerSaltLevelSensor(BaseSoftenerSensor):
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, coordinator, entry: ConfigEntry, water_meter: str) -> None:
+    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._water_meter = water_meter
         self._attr_unique_id = f"{entry.entry_id}_salt_level"
 
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass, [self._water_meter], self._on_meter_update
-            )
-        )
-
-    @callback
-    def _on_meter_update(self, event) -> None:
-        self.async_write_ha_state()
-
     @property
-    def native_value(self) -> float:
-        capacity = self.entry.options.get(
-            CONF_SALT_CAPACITY,
-            self.entry.data.get(CONF_SALT_CAPACITY, DEFAULT_SALT_CAPACITY),
-        )
+    def native_value(self) -> float | None:
+        remaining = self.coordinator.salt_remaining
+        if remaining is None:
+            return None
+        capacity = self.coordinator.salt_capacity
         if capacity <= 0:
             return 0.0
-        rate = (
-            self.entry.options.get(
-                CONF_CONSUMPTION_RATE,
-                self.entry.data.get(CONF_CONSUMPTION_RATE, DEFAULT_CONSUMPTION_RATE),
-            )
-            / 1000.0
-        )
-        current = self._get_current_meter_value(self._water_meter)
-        water_used = max(current - self.coordinator.baseline_reading, 0.0)
-        remaining = max(capacity - (water_used * rate), 0.0)
-        return max(round((remaining / capacity) * 100, 1), 0.0)
+        return round((remaining / capacity) * 100, 1)
 
 
 class WaterSoftenerLastRefillSensor(BaseSoftenerSensor):
@@ -201,10 +131,10 @@ class WaterSoftenerLastRefillSensor(BaseSoftenerSensor):
     _attr_name = "Last Refill Date"
     _attr_icon = "mdi:calendar-check"
 
-    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_last_refill"
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         return self.coordinator.last_refill_date
