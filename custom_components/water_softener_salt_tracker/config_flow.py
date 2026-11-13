@@ -5,7 +5,6 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
@@ -41,23 +40,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional("name", default=DEFAULT_NAME): selector.TextSelector(),
                 vol.Required(CONF_WATER_METER_SENSOR): selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="sensor",
-                        device_class=[SensorDeviceClass.WATER],
-                    )
+                    selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Required(
                     CONF_SALT_CAPACITY, default=DEFAULT_SALT_CAPACITY
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=1.0, max=100.0, step=0.5, unit_of_measurement="kg"
+                        min=1.0, max=50.0, step=0.5, unit_of_measurement="kg"
                     )
                 ),
                 vol.Required(
                     CONF_CONSUMPTION_RATE, default=DEFAULT_CONSUMPTION_RATE
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=0.05, max=5.0, step=0.005, unit_of_measurement="g/L"
+                        min=0.1, max=2.0, step=0.005, unit_of_measurement="g/L"
                     )
                 ),
             }
@@ -99,7 +95,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=1.0, max=100.0, step=0.5, unit_of_measurement="kg"
+                        min=1.0, max=50.0, step=0.5, unit_of_measurement="kg"
                     )
                 ),
                 vol.Required(
@@ -112,7 +108,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=0.05, max=5.0, step=0.005, unit_of_measurement="g/L"
+                        min=0.1, max=2.0, step=0.005, unit_of_measurement="g/L"
                     )
                 ),
             }
