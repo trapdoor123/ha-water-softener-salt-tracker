@@ -4,7 +4,7 @@ You are taking over development on **`ha-water-softener-salt-tracker`**, a custo
 
 ## 1. Repository & Release Status
 - **GitHub Repository:** `[https://github.com/trapdoor123/ha-water-softener-salt-tracker](https://github.com/trapdoor123/ha-water-softener-salt-tracker)`
-- **Current Release:** `v1.0.2` (published on `main` and tagged as a GitHub Release for HACS)
+- **Current Release:** `v1.0.3` (published on `main` and tagged as a GitHub Release for HACS)
 - **Integration Domain:** `water_softener_salt_tracker`
 - **Integration Type:** `helper` (`iot_class: calculated`)
 - **Workflow Expectations:** When making code changes, always keep `custom_components/water_softener_salt_tracker/manifest.json` (`"version"`) in sync with semantic Git tags (`vX.Y.Z`) and GitHub Releases (`gh release create`), as HACS relies on matching manifest versions and GitHub release tags to notify users of updates.
@@ -23,7 +23,8 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
     │       ├── const.py          # Domain constants & default calibration values
     │       ├── manifest.json     # Integration metadata & version
     │       ├── sensor.py         # 4 diagnostic/tracking sensor entities
-    │       └── strings.json      # UI labels for config & options flows
+    │       └── translations/
+    │           └── en.json       # UI labels for config & options flows, repair issues
     ├── .gitignore
     ├── CLAUDE.md                 # Project context for Claude Code
     ├── hacs.json                 # HACS repository metadata

@@ -23,5 +23,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "meter_below_baseline": {
+      "title": "Water meter reading is below the salt tracker baseline",
+      "description": "The water meter `{entity_id}` used by **{name}** reads {reading}, which is lower than the reading of {baseline} stored at the last salt refill. The meter has probably been reset or replaced, so salt usage cannot be tracked correctly.\n\nPress the **Reset Salt Level** button to start tracking again from the current meter reading."
+    }
   }
 }
