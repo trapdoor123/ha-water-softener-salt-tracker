@@ -119,7 +119,3 @@ Find your softener model and local water hardness to determine your `Consumption
 | `sensor.water_softener_water_processed` | Sensor (L) | Litres of water softened since last refill |
 | `sensor.water_softener_last_refill_date` | Sensor | Date of last recorded salt replenishment |
 | `button.water_softener_reset_salt_level` | Button | Snapshot current meter reading to 100% capacity |
-
----
-
-*100% vibe-coded with love by Gemini.*

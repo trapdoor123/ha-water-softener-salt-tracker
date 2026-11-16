@@ -65,7 +65,6 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
 - **Minimum Home Assistant Version:** `2024.12.0`, declared in `hacs.json`. The options flow relies on the built-in `OptionsFlow.config_entry` property, which does not exist in 2024.11 (verified by the test suite). If the minimum changes, update `hacs.json` and `requirements_test_min.txt` together; a test enforces that they match.
 - **Testing & Linting:** Run `pip install -r requirements_test.txt` then `pytest`, and `ruff check .`. CI runs the tests against both the latest and the minimum Home Assistant, plus `hassfest` and HACS validation, on every pull request, weekly, and before each release. Add or update tests with every behaviour change.
 - **Sensor Filtering:** `config_flow.py` uses `EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.WATER])`. Keep in mind some custom/scraper water integrations omit `device_class: water`—consider whether future versions should broaden or provide a fallback selector if users report missing sensors.
-- **README Attribution:** Preserve the footer line (`*100% vibe-coded with love by Gemini.*`) at the bottom of `README.md`.
 
 ## 5. Planned Roadmap & Feature Backlog
 Please inspect the current codebase first, summarize its state, and be ready to help implement and release features from this backlog:
