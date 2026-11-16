@@ -3,6 +3,17 @@
 Each `## vX.Y.Z` section below becomes the GitHub Release notes for that
 version when it is published.
 
+## v1.0.4
+
+### Bug fixes
+
+- **Minimum Home Assistant version corrected to 2024.12.0.** v1.0.3 declared 2024.11.0, but the options form fails on 2024.11. HACS will now only offer the integration on 2024.12.0 or later.
+
+### Internal
+
+- Added an automated test suite, run against both the minimum supported and the latest Home Assistant.
+- Added CI: lint, tests, hassfest and HACS validation on every pull request, weekly, and before each release.
+
 ## v1.0.3
 
 ### Bug fixes

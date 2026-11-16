@@ -1,0 +1,3 @@
+# Each release of this package pins a matching Home Assistant version, so
+# installing the latest one tests against a recent Home Assistant.
+pytest-homeassistant-custom-component

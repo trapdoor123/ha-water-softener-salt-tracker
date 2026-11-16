@@ -1,9 +1,9 @@
 name: Release
 
 # Publishes a GitHub Release (and its tag) whenever the version in
-# manifest.json on main has no matching vX.Y.Z tag yet. HACS uses these
-# releases to offer updates, so bumping the manifest version and merging to
-# main is the whole release process.
+# manifest.json on main has no matching vX.Y.Z tag yet, provided the CI checks
+# pass. HACS uses these releases to offer updates, so bumping the manifest
+# version and merging to main is the whole release process.
 
 on:
   push:
@@ -11,15 +11,21 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 

@@ -1,0 +1,80 @@
+name: CI
+
+# Runs on every pull request, weekly (to catch breakage from new Home
+# Assistant releases), on demand, and from release.yml before a release.
+
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.16.9
+      - run: ruff check .
+
+  tests:
+    name: Tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: latest Home Assistant
+            # Must be a Python version the newest Home Assistant supports,
+            # otherwise pip quietly installs an older Home Assistant.
+            python-version: "3.14"
+            requirements: requirements_test.txt
+          - name: minimum Home Assistant
+            python-version: "3.12"
+            requirements: requirements_test_min.txt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: ${{ matrix.requirements }}
+      - name: Install test requirements
+        run: pip install -r ${{ matrix.requirements }}
+      - name: Show Home Assistant version
+        run: pip show homeassistant | grep -i '^version'
+      - name: Run tests
+        run: pytest
+
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # TODO: remove each of these once it is fixed, so HACS checks it:
+          #   license     - add a LICENSE file to the repository
+          #   description - set a description in the GitHub repository settings
+          #   topics      - add topics in the GitHub repository settings
+          #   brands      - add custom_components/water_softener_salt_tracker/brand/icon.png
+          ignore: license description topics brands
