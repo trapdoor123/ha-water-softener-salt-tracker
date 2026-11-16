@@ -7,7 +7,7 @@ You are taking over development on **`ha-water-softener-salt-tracker`**, a custo
 - **Current Release:** `v1.0.3` (published on `main` and tagged as a GitHub Release for HACS)
 - **Integration Domain:** `water_softener_salt_tracker`
 - **Integration Type:** `helper` (`iot_class: calculated`)
-- **Workflow Expectations:** When making code changes, always keep `custom_components/water_softener_salt_tracker/manifest.json` (`"version"`) in sync with semantic Git tags (`vX.Y.Z`) and GitHub Releases (`gh release create`), as HACS relies on matching manifest versions and GitHub release tags to notify users of updates.
+- **Release Process:** Releases are automated by `.github/workflows/release.yml`. To release, bump `"version"` in `custom_components/water_softener_salt_tracker/manifest.json`, add a matching `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes), and merge to `main`. The workflow then creates the `vX.Y.Z` tag and GitHub Release if that tag does not exist yet. HACS relies on matching manifest versions and release tags to notify users of updates. Do not create tags or releases by hand (cloud Claude Code sessions cannot push tags or create releases anyway).
 
 ## 2. Core Problem & Architecture
 Instead of placing ultrasonic or optical distance sensors inside a corrosive brine tank, this integration estimates water softener salt consumption purely from whole-house cumulative water meter readings (`total` or `total_increasing` sensors).
@@ -25,7 +25,11 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
     │       ├── sensor.py         # 4 diagnostic/tracking sensor entities
     │       └── translations/
     │           └── en.json       # UI labels for config & options flows, repair issues
+    ├── .github/
+    │   └── workflows/
+    │       └── release.yml       # Tags + publishes a release when the manifest version is new
     ├── .gitignore
+    ├── CHANGELOG.md              # Per-version notes, used as GitHub Release notes
     ├── CLAUDE.md                 # Project context for Claude Code
     ├── hacs.json                 # HACS repository metadata
     └── README.md                 # User documentation & softener calibration reference

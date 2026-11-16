@@ -1,0 +1,82 @@
+name: Release
+
+# Publishes a GitHub Release (and its tag) whenever the version in
+# manifest.json on main has no matching vX.Y.Z tag yet. HACS uses these
+# releases to offer updates, so bumping the manifest version and merging to
+# main is the whole release process.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read manifest version
+        id: version
+        run: |
+          version="$(jq -er '.version' custom_components/water_softener_salt_tracker/manifest.json)"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::manifest.json version '$version' is not X.Y.Z"
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing tag
+        id: existing
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; nothing to release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        if: steps.existing.outputs.exists == 'false'
+        id: notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # Take the body of the "## vX.Y.Z" section, if there is one.
+          if [ -f CHANGELOG.md ]; then
+            awk -v tag="$TAG" '
+              /^## / { found = ($2 == tag); next }
+              found  { print }
+            ' CHANGELOG.md > release-notes.md
+          else
+            : > release-notes.md
+          fi
+          if grep -q '[^[:space:]]' release-notes.md; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NOTES_FOUND: ${{ steps.notes.outputs.found }}
+        run: |
+          if [ "$NOTES_FOUND" = "true" ]; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" \
+              --notes-file release-notes.md
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" \
+              --generate-notes
+          fi
