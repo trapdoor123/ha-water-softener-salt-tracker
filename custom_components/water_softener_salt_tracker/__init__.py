@@ -1,9 +1,9 @@
 """The Water Softener Salt Tracker integration."""
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
 import math
+from collections.abc import Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, Platform

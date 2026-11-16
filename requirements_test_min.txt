@@ -1,0 +1,6 @@
+# Tests against the minimum Home Assistant version declared in hacs.json.
+# This release of the test package pins homeassistant==2024.12.0; keep the
+# two in step if the minimum is ever raised.
+pytest-homeassistant-custom-component==0.13.190
+# Home Assistant 2024.12 fails to import with josepy 2.x.
+josepy<2

@@ -4,10 +4,10 @@ You are taking over development on **`ha-water-softener-salt-tracker`**, a custo
 
 ## 1. Repository & Release Status
 - **GitHub Repository:** `[https://github.com/trapdoor123/ha-water-softener-salt-tracker](https://github.com/trapdoor123/ha-water-softener-salt-tracker)`
-- **Current Release:** `v1.0.3` (published on `main` and tagged as a GitHub Release for HACS)
+- **Current Release:** `v1.0.4` (published on `main` and tagged as a GitHub Release for HACS)
 - **Integration Domain:** `water_softener_salt_tracker`
 - **Integration Type:** `helper` (`iot_class: calculated`)
-- **Release Process:** Releases are automated by `.github/workflows/release.yml`. To release, bump `"version"` in `custom_components/water_softener_salt_tracker/manifest.json`, add a matching `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes), and merge to `main`. The workflow then creates the `vX.Y.Z` tag and GitHub Release if that tag does not exist yet. HACS relies on matching manifest versions and release tags to notify users of updates. Do not create tags or releases by hand (cloud Claude Code sessions cannot push tags or create releases anyway).
+- **Release Process:** Releases are automated by `.github/workflows/release.yml`. To release, bump `"version"` in `custom_components/water_softener_salt_tracker/manifest.json`, add a matching `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes), and merge to `main`. The workflow first runs the CI checks (`ci.yml`) and, if they pass, creates the `vX.Y.Z` tag and GitHub Release if that tag does not exist yet. HACS relies on matching manifest versions and release tags to notify users of updates. Do not create tags or releases by hand (cloud Claude Code sessions cannot push tags or create releases anyway).
 
 ## 2. Core Problem & Architecture
 Instead of placing ultrasonic or optical distance sensors inside a corrosive brine tank, this integration estimates water softener salt consumption purely from whole-house cumulative water meter readings (`total` or `total_increasing` sensors).
@@ -27,12 +27,17 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
     │           └── en.json       # UI labels for config & options flows, repair issues
     ├── .github/
     │   └── workflows/
-    │       └── release.yml       # Tags + publishes a release when the manifest version is new
+    │       ├── ci.yml            # Lint, tests, hassfest and HACS validation
+    │       └── release.yml       # Runs CI, then tags + publishes a release when the manifest version is new
+    ├── tests/                    # pytest-homeassistant-custom-component test suite
     ├── .gitignore
     ├── CHANGELOG.md              # Per-version notes, used as GitHub Release notes
     ├── CLAUDE.md                 # Project context for Claude Code
     ├── hacs.json                 # HACS repository metadata
-    └── README.md                 # User documentation & softener calibration reference
+    ├── pyproject.toml            # pytest and ruff configuration
+    ├── README.md                 # User documentation & softener calibration reference
+    ├── requirements_test.txt     # Test requirements (latest Home Assistant)
+    └── requirements_test_min.txt # Test requirements (minimum supported Home Assistant)
 
 ### Data Model & Calculation Logic
 - **Persistence:** Uses `homeassistant.helpers.storage.Store` (key: `water_softener_salt_tracker.storage_<entry_id>`) to persist:
@@ -56,7 +61,9 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
   - **Empirical Calibration Finding:** A full 8.0 kg load (two 4.0 kg salt blocks) ran from `25,052 L` (15 Aug 2026) to empty at `36,737 L` (13 Nov 2026) = `11,685 L` recorded (`~12,088 L` lag-adjusted). Because ~0.8–1.0 kg dissolves immediately to saturate standing brine water when starting empty—and older brine valves (`B/V 1`) can draw slightly more refill water per cycle—the calibrated real-world rate for this unit is **`0.685 g/L`** (recorded) / **`0.665 g/L`** (lag-adjusted) rather than the `0.400 g/L` brochure figure.
 
 ## 4. Home Assistant Technical Constraints & Lessons Learned
-- **`OptionsFlow` Compatibility (Fixed in `v1.0.2`):** In modern Home Assistant Core, `self.config_entry` on `config_entries.OptionsFlow` is a built-in read-only property. Never assign `self.config_entry = config_entry` inside `OptionsFlowHandler.__init__`, as doing so raises an `AttributeError` (`500 Internal Server Error`) when users click the integration's gear/configure button.
+- **`OptionsFlow` Compatibility (Fixed in `v1.0.2`):** In Home Assistant Core 2024.12 and later, `self.config_entry` on `config_entries.OptionsFlow` is a built-in read-only property. Never assign `self.config_entry = config_entry` inside `OptionsFlowHandler.__init__`, as doing so raises an `AttributeError` (`500 Internal Server Error`) when users click the integration's gear/configure button.
+- **Minimum Home Assistant Version:** `2024.12.0`, declared in `hacs.json`. The options flow relies on the built-in `OptionsFlow.config_entry` property, which does not exist in 2024.11 (verified by the test suite). If the minimum changes, update `hacs.json` and `requirements_test_min.txt` together; a test enforces that they match.
+- **Testing & Linting:** Run `pip install -r requirements_test.txt` then `pytest`, and `ruff check .`. CI runs the tests against both the latest and the minimum Home Assistant, plus `hassfest` and HACS validation, on every pull request, weekly, and before each release. Add or update tests with every behaviour change.
 - **Sensor Filtering:** `config_flow.py` uses `EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.WATER])`. Keep in mind some custom/scraper water integrations omit `device_class: water`—consider whether future versions should broaden or provide a fallback selector if users report missing sensors.
 - **README Attribution:** Preserve the footer line (`*100% vibe-coded with love by Gemini.*`) at the bottom of `README.md`.
 
@@ -66,6 +73,6 @@ Please inspect the current codebase first, summarize its state, and be ready to 
 2. **Automatic Unit Conversion (`m³` and `gal`):** Detect `native_unit_of_measurement` on the upstream water meter sensor (`L`, `m³`, `gal`, `ft³`) and normalize automatically to Litres so users don't need intermediate template sensors.
 3. **Partial Top-Up Support:** Allow adding a configurable mass of salt (e.g. one 4.0 kg block added when at 30%) rather than assuming every reset starts from 100% of `salt_capacity`.
 4. **Consumption Rate & Days-Remaining Forecasting:** Track rolling daily water usage to expose an `Estimated Days Remaining` (and/or predicted empty date) sensor.
-5. **CI & Automated Testing:** Add `pytest-homeassistant-custom-component` unit tests and GitHub Actions workflows for `hassfest` and `hacs/action` validation.
+5. ~~**CI & Automated Testing**~~ — done in `v1.0.4` (see Testing & Linting above).
 
 Start by inspecting the repository files (`git status`, `git log -n 5`, and the contents of `custom_components/water_softener_salt_tracker/`) to confirm everything matches this baseline, then ask what feature I want to tackle first.
