@@ -37,7 +37,9 @@ jobs:
       matrix:
         include:
           - name: latest Home Assistant
-            python-version: "3.13"
+            # Must be a Python version the newest Home Assistant supports,
+            # otherwise pip quietly installs an older Home Assistant.
+            python-version: "3.14"
             requirements: requirements_test.txt
           - name: minimum Home Assistant
             python-version: "3.12"
@@ -70,3 +72,9 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # TODO: remove each of these once it is fixed, so HACS checks it:
+          #   license     - add a LICENSE file to the repository
+          #   description - set a description in the GitHub repository settings
+          #   topics      - add topics in the GitHub repository settings
+          #   brands      - add custom_components/water_softener_salt_tracker/brand/icon.png
+          ignore: license description topics brands
