@@ -177,12 +177,38 @@ async def test_reconfigure_new_meter_unavailable(hass: HomeAssistant, entry) -> 
     assert entry.data[CONF_WATER_METER_SENSOR] == METER
 
 
-async def test_reconfigure_when_old_meter_is_gone(hass: HomeAssistant, entry) -> None:
-    """With no old reading, tracking restarts from the new meter's reading."""
+async def test_reconfigure_when_old_meter_is_gone_uses_last_reading(
+    hass: HomeAssistant, entry
+) -> None:
+    """The old meter's last valid reading still carries the usage over."""
     await set_meter(hass, "1000")
     await setup_entry(hass, entry)
     await set_meter(hass, "3000")
     await set_meter(hass, "unavailable")
+    hass.states.async_set(NEW_METER, "500000")
+
+    result = await _start_reconfigure(hass, entry)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_WATER_METER_SENSOR: NEW_METER}
+    )
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert hass.states.get("sensor.water_softener_salt_remaining").state == "7.0"
+
+
+async def test_reconfigure_with_no_old_reading_restarts(
+    hass: HomeAssistant, hass_storage, entry
+) -> None:
+    """With no old reading at all, tracking restarts from the new meter's reading."""
+    hass_storage[f"{DOMAIN}.storage_{entry.entry_id}"] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": f"{DOMAIN}.storage_{entry.entry_id}",
+        "data": {"baseline_reading": 1000.0, "last_refill_date": "2026-08-15"},
+    }
+    await set_meter(hass, "unavailable")
+    await setup_entry(hass, entry)
     hass.states.async_set(NEW_METER, "500000")
 
     result = await _start_reconfigure(hass, entry)

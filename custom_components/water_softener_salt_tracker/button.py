@@ -35,7 +35,7 @@ class WaterSoftenerResetButton(SoftenerEntity, ButtonEntity):
             # Refuse rather than store a bogus baseline of 0.
             raise HomeAssistantError(
                 f"Cannot reset the salt level: water meter "
-                f"{self.coordinator.water_meter} has no valid reading right now. "
-                "Try again once it is available."
+                f"{self.coordinator.water_meter} has not reported a valid reading "
+                "yet. Try again once it has."
             )
         await self.coordinator.async_reset_refill(current_reading)

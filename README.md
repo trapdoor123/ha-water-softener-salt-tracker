@@ -111,6 +111,8 @@ Find your softener model and local water hardness to determine your `Consumption
 
 Each softener appears as a device under **Settings > Devices & Services**, holding all of the entities below.
 
+If your water meter goes blank (for example, a daily-updating utility meter after a Home Assistant restart), the tracker uses the meter's last valid reading until it reports again.
+
 ### Changing settings later
 
 * **Salt capacity and consumption rate:** open the integration and click **Configure**.
