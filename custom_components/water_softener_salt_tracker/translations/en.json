@@ -8,9 +8,32 @@
           "name": "Integration Name",
           "water_meter_sensor": "Water Meter Sensor (Total Increasing)",
           "salt_capacity": "Total Salt Capacity (kg)",
-          "consumption_rate": "Consumption Rate (g salt per Litre)"
+          "consumption_rate": "Consumption Rate (g salt per Litre)",
+          "manufacturer": "Softener make (optional)",
+          "model": "Softener model (optional)"
+        },
+        "data_description": {
+          "water_meter_sensor": "A cumulative water meter in litres that measures all the water going through the softener.",
+          "consumption_rate": "Grams of salt used per litre of water. See the README for typical values, or calibrate from a full refill.",
+          "manufacturer": "Shown on the device page, for example Harvey.",
+          "model": "Shown on the device page, for example Dual Flo H20/25."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure water softener",
+        "description": "If you switch to a different water meter, the water used since your last refill is carried over, so your salt level stays the same. If the current meter has no reading, tracking restarts from the new meter's reading.",
+        "data": {
+          "water_meter_sensor": "Water Meter Sensor (Total Increasing)",
+          "manufacturer": "Softener make (optional)",
+          "model": "Softener model (optional)"
         }
       }
+    },
+    "error": {
+      "meter_unavailable": "This water meter has no reading right now. Try again once it is available."
+    },
+    "abort": {
+      "reconfigure_successful": "The water softener was reconfigured."
     }
   },
   "options": {
@@ -21,6 +44,27 @@
           "salt_capacity": "Total Salt Capacity (kg)",
           "consumption_rate": "Consumption Rate (g salt per Litre)"
         }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "water_processed": {
+        "name": "Water processed since refill"
+      },
+      "salt_remaining": {
+        "name": "Salt remaining"
+      },
+      "salt_level": {
+        "name": "Salt level"
+      },
+      "last_refill_date": {
+        "name": "Last refill date"
+      }
+    },
+    "button": {
+      "reset_salt_level": {
+        "name": "Reset salt level"
       }
     }
   },

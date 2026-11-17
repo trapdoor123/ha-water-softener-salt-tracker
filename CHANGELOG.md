@@ -3,6 +3,26 @@
 Each `## vX.Y.Z` section below becomes the GitHub Release notes for that
 version when it is published.
 
+## v1.1.0
+
+### Changes
+
+- **Now a proper device.** The integration is listed under **Settings > Devices & services > Integrations** with one device per softener, holding all the sensors and the Reset button. Previously it appeared as a helper with no obvious device.
+- **Softener make and model.** You can enter these (optional) when adding the integration or later via Reconfigure. They appear on the device page. Earlier versions labelled every device "Harvey / Generic"; that label is removed.
+- **Reconfigure.** Change the water meter, make or model from the integration's menu without deleting it. If you switch water meters, the water used since your last refill is carried over, so your salt level stays the same.
+- **Better sensors.**
+  - *Last refill date* is now a real date sensor.
+  - *Salt remaining* is now a weight sensor, so you can display it in other units.
+  - *Salt remaining* and *Salt level* now record long-term statistics for history graphs.
+- **Easier number entry.** Salt capacity and consumption rate are typed into boxes instead of sliders, and the rate accepts three decimal places (e.g. `0.685`).
+- **Clean removal.** Deleting the integration now also deletes its stored refill baseline.
+
+### Upgrade notes
+
+- Restart Home Assistant after updating.
+- Entity IDs are unchanged, so dashboards and automations keep working.
+- To add your softener's make and model, open the integration, click the three-dot menu on the entry and choose **Reconfigure**.
+
 ## v1.0.4
 
 ### Bug fixes

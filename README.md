@@ -107,15 +107,25 @@ Find your softener model and local water hardness to determine your `Consumption
    * **Water Meter Sensor:** Pick your cumulative water sensor from the drop-down.
    * **Salt Capacity:** Total weight loaded at full refill (default: `8.0` kg for 2 block packs).
    * **Consumption Rate:** Salt consumption in grams per litre (default: `0.345` g/L).
+   * **Softener make and model** (optional): Shown on the device page.
+
+Each softener appears as a device under **Settings > Devices & Services**, holding all of the entities below.
+
+### Changing settings later
+
+* **Salt capacity and consumption rate:** open the integration and click **Configure**.
+* **Water meter, make or model:** open the integration, click the three-dot menu on the entry and choose **Reconfigure**. If you switch to a different water meter, the water used since your last refill is carried over, so your salt level stays the same.
 
 ---
 
 ## Entities Provided
 
+Entity IDs below assume the default name, *Water Softener*.
+
 | Entity | Domain | Description |
 | :--- | :--- | :--- |
-| `sensor.water_softener_salt_level` | Sensor (%) | Current estimated salt capacity remaining |
+| `sensor.water_softener_salt_level` | Sensor (%) | Estimated salt level as a percentage of capacity |
 | `sensor.water_softener_salt_remaining` | Sensor (kg) | Estimated kilograms of salt remaining |
-| `sensor.water_softener_water_processed` | Sensor (L) | Litres of water softened since last refill |
-| `sensor.water_softener_last_refill_date` | Sensor | Date of last recorded salt replenishment |
-| `button.water_softener_reset_salt_level` | Button | Snapshot current meter reading to 100% capacity |
+| `sensor.water_softener_water_processed_since_refill` | Sensor (L) | Litres of water softened since last refill |
+| `sensor.water_softener_last_refill_date` | Sensor (date) | Date of last recorded salt refill |
+| `button.water_softener_reset_salt_level` | Button | Press after refilling: sets the salt level back to 100% |

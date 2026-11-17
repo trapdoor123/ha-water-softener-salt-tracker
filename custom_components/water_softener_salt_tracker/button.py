@@ -2,41 +2,31 @@
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import SoftenerDataCoordinator
-from .const import DOMAIN
+from .coordinator import SoftenerConfigEntry
+from .entity import SoftenerEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SoftenerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up reset button."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([WaterSoftenerResetButton(coordinator, entry)])
+    async_add_entities([WaterSoftenerResetButton(entry)])
 
 
-class WaterSoftenerResetButton(ButtonEntity):
+class WaterSoftenerResetButton(SoftenerEntity, ButtonEntity):
     """Button to reset salt consumption tracking."""
 
-    _attr_has_entity_name = True
-    _attr_name = "Reset Salt Level"
     _attr_icon = "mdi:restore"
 
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        self.coordinator = coordinator
-        self.entry = entry
+    def __init__(self, entry: SoftenerConfigEntry) -> None:
+        super().__init__(entry, "reset_salt_level")
         self._attr_unique_id = f"{entry.entry_id}_reset_button"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-        )
 
     async def async_press(self) -> None:
         """Handle button press to snapshot current meter reading."""

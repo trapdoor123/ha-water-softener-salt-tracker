@@ -4,8 +4,8 @@
   "codeowners": ["@trapdoor123"],
   "config_flow": true,
   "documentation": "https://github.com/trapdoor123/ha-water-softener-salt-tracker",
-  "integration_type": "helper",
+  "integration_type": "device",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/trapdoor123/ha-water-softener-salt-tracker/issues",
-  "version": "1.0.4"
+  "version": "1.1.0"
 }

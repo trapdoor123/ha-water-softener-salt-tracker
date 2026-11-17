@@ -5,6 +5,8 @@ DOMAIN = "water_softener_salt_tracker"
 CONF_WATER_METER_SENSOR = "water_meter_sensor"
 CONF_SALT_CAPACITY = "salt_capacity"
 CONF_CONSUMPTION_RATE = "consumption_rate"
+CONF_MANUFACTURER = "manufacturer"
+CONF_MODEL = "model"
 
 DEFAULT_NAME = "Water Softener"
 DEFAULT_SALT_CAPACITY = 8.0
