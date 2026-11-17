@@ -6,7 +6,7 @@ import math
 from collections.abc import Callable
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
@@ -26,6 +26,11 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long to wait before persisting a new meter reading. Readings are also
+# written when Home Assistant shuts down, so this only limits disk writes for
+# meters that update every few seconds.
+READING_SAVE_DELAY = 60
 
 type SoftenerConfigEntry = ConfigEntry[SoftenerDataCoordinator]
 
@@ -58,11 +63,21 @@ async def async_move_baseline_to_meter(
     """Re-base the stored baseline onto a different water meter.
 
     The litres used since the last refill are carried over, so the salt level
-    is unchanged by the switch. If the old meter has no reading, the usage so
-    far cannot be known and tracking restarts from the new meter's reading.
+    is unchanged by the switch. If the old meter has never had a reading, the
+    usage so far cannot be known and tracking restarts from the new meter.
     """
-    store = create_store(hass, entry)
-    data = await store.async_load() or {}
+    # Use the running tracker when there is one: it may hold a meter reading
+    # that has not been written to storage yet.
+    coordinator: SoftenerDataCoordinator | None = (
+        entry.runtime_data if entry.state is ConfigEntryState.LOADED else None
+    )
+    if coordinator:
+        store = coordinator.store
+        data = coordinator.data_to_save()
+    else:
+        store = create_store(hass, entry)
+        data = await store.async_load() or {}
+
     baseline = data.get("baseline_reading")
     if baseline is None:
         # Nothing tracked yet; the first reading of the new meter is used.
@@ -70,6 +85,8 @@ async def async_move_baseline_to_meter(
 
     old_meter = entry.data[CONF_WATER_METER_SENSOR]
     old_reading = read_meter(hass, old_meter)
+    if old_reading is None:
+        old_reading = data.get("last_meter_reading")
     if old_reading is None:
         _LOGGER.warning(
             "%s: old water meter %s has no reading, so the water used since "
@@ -85,7 +102,14 @@ async def async_move_baseline_to_meter(
         water_used = max(old_reading - baseline, 0.0)
 
     data["baseline_reading"] = new_reading - water_used
-    data.setdefault("last_refill_date", today())
+    data["last_meter_reading"] = new_reading
+    if not data.get("last_refill_date"):
+        data["last_refill_date"] = today()
+
+    if coordinator:
+        coordinator.baseline_reading = data["baseline_reading"]
+        coordinator.last_meter_reading = new_reading
+        coordinator.last_refill_date = data["last_refill_date"]
     await store.async_save(data)
 
 
@@ -100,6 +124,9 @@ class SoftenerDataCoordinator:
         # None until a baseline has been stored or snapshotted from the meter.
         self.baseline_reading: float | None = None
         self.last_refill_date: str | None = None
+        # Last valid meter reading, used while the meter has none (for example
+        # after a restart, until a daily-updating utility meter reports again).
+        self.last_meter_reading: float | None = None
         self.listeners: list[Callable[[], None]] = []
         self._below_baseline_logged = False
 
@@ -124,8 +151,12 @@ class SoftenerDataCoordinator:
         )
 
     def get_meter_reading(self) -> float | None:
-        """Return the upstream meter reading, or None if it has no usable value."""
-        return read_meter(self.hass, self.water_meter)
+        """Return the meter reading, or the last valid one if it has none now.
+
+        None only if the meter has never had a valid reading.
+        """
+        reading = read_meter(self.hass, self.water_meter)
+        return self.last_meter_reading if reading is None else reading
 
     @property
     def water_used(self) -> float | None:
@@ -150,6 +181,7 @@ class SoftenerDataCoordinator:
         if data:
             self.baseline_reading = data.get("baseline_reading")
             self.last_refill_date = data.get("last_refill_date")
+            self.last_meter_reading = data.get("last_meter_reading")
 
     @callback
     def async_start(self) -> Callable[[], None]:
@@ -167,17 +199,21 @@ class SoftenerDataCoordinator:
 
     @callback
     def _process_meter_reading(self) -> None:
-        """Initialise the baseline on first use and watch for meter resets."""
-        reading = self.get_meter_reading()
+        """Remember valid readings, set the first baseline, watch for resets."""
+        reading = read_meter(self.hass, self.water_meter)
         if reading is None:
             return
+
+        if reading != self.last_meter_reading:
+            self.last_meter_reading = reading
+            self.store.async_delay_save(self.data_to_save, READING_SAVE_DELAY)
 
         if self.baseline_reading is None:
             # First valid reading since install: start tracking from here
             # rather than counting the meter's lifetime total as salt used.
             self.baseline_reading = reading
             self.last_refill_date = today()
-            self.store.async_delay_save(self._data_to_save, 0)
+            self.store.async_delay_save(self.data_to_save, 0)
             _LOGGER.info(
                 "%s: starting salt tracking from meter reading %s",
                 self.entry.title,
@@ -220,10 +256,12 @@ class SoftenerDataCoordinator:
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
 
     @callback
-    def _data_to_save(self) -> dict[str, float | str | None]:
+    def data_to_save(self) -> dict[str, Any]:
+        """The values persisted in the Store."""
         return {
             "baseline_reading": self.baseline_reading,
             "last_refill_date": self.last_refill_date,
+            "last_meter_reading": self.last_meter_reading,
         }
 
     @callback
@@ -235,6 +273,6 @@ class SoftenerDataCoordinator:
         """Update baseline reading to current meter state."""
         self.baseline_reading = current_reading
         self.last_refill_date = today()
-        await self.store.async_save(self._data_to_save())
+        await self.store.async_save(self.data_to_save())
         self._clear_below_baseline()
         self._notify_listeners()

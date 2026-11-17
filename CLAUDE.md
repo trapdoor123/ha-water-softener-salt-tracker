@@ -4,7 +4,7 @@ You are taking over development on **`ha-water-softener-salt-tracker`**, a custo
 
 ## 1. Repository & Release Status
 - **GitHub Repository:** `[https://github.com/trapdoor123/ha-water-softener-salt-tracker](https://github.com/trapdoor123/ha-water-softener-salt-tracker)`
-- **Current Release:** `v1.1.0` (published on `main` and tagged as a GitHub Release for HACS)
+- **Current Release:** `v1.1.1` (published on `main` and tagged as a GitHub Release for HACS)
 - **Integration Domain:** `water_softener_salt_tracker`
 - **Integration Type:** `device` (`iot_class: calculated`) since `v1.1.0` — one device per config entry (per softener). It was `helper` before, which hid the device in the UI.
 - **Release Process:** Releases are automated by `.github/workflows/release.yml`. To release, bump `"version"` in `custom_components/water_softener_salt_tracker/manifest.json`, add a matching `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes), and merge to `main`. The workflow first runs the CI checks (`ci.yml`) and, if they pass, creates the `vX.Y.Z` tag and GitHub Release if that tag does not exist yet. HACS relies on matching manifest versions and release tags to notify users of updates. Do not create tags or releases by hand (cloud Claude Code sessions cannot push tags or create releases anyway).
@@ -45,7 +45,8 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
 - **Persistence:** Uses `homeassistant.helpers.storage.Store` (key: `water_softener_salt_tracker.storage_<entry_id>`) to persist:
   - `baseline_reading` (`float`, in Litres): Snapshot of the upstream water meter at the last salt refill.
   - `last_refill_date` (`str`, `YYYY-MM-DD`): Date of the last refill.
-- **Formulas (evaluated dynamically on upstream water meter state changes):**
+  - `last_meter_reading` (`float`, since `v1.1.1`): Last valid upstream meter reading. Used whenever the meter is `unknown`/`unavailable`/non-numeric, so daily-updating utility meters (e.g. Thames Water, blank for hours after a restart) don't blank the salt sensors. Saved with a 60 s delay (`READING_SAVE_DELAY`) plus HA's final write on shutdown; `async_unload_entry` flushes it so a pending delayed write can't overwrite data saved after a reload.
+- **Formulas (evaluated dynamically on upstream water meter state changes; `current_meter_reading` falls back to `last_meter_reading`):**
   - `water_used = max(current_meter_reading - baseline_reading, 0.0)`
   - `salt_remaining_kg = max(salt_capacity - (water_used * (consumption_rate / 1000.0)), 0.0)`
   - `salt_level_pct = max(round((salt_remaining_kg / salt_capacity) * 100, 1), 0.0)`
@@ -68,6 +69,7 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
 - **Minimum Home Assistant Version:** `2024.12.0`, declared in `hacs.json`. The options flow relies on the built-in `OptionsFlow.config_entry` property, which does not exist in 2024.11 (verified by the test suite). If the minimum changes, update `hacs.json` and `requirements_test_min.txt` together; a test enforces that they match.
 - **Testing & Linting:** Run `pip install -r requirements_test.txt` then `pytest`, and `ruff check .`. CI runs the tests against both the latest and the minimum Home Assistant, plus `hassfest` and HACS validation, on every pull request, weekly, and before each release. Add or update tests with every behaviour change.
 - **Entity IDs Must Stay Stable:** Unique IDs (`<entry_id>_water_processed`, `_salt_remaining`, `_salt_level`, `_last_refill`, `_reset_button`) and the translated entity names determine entity IDs. Changing either renames users' entities on new installs or breaks history, so don't.
+- **Real-world meter behaviour:** The Thames Water integration's water sensor (`unit_of_measurement: L`, `state_class: total_increasing`) is `unknown` with `last_reading_time: null` after a Home Assistant restart until its next daily fetch. Never assume the upstream meter has a value; the remembered reading covers this.
 - **Restarts:** Any code update needs a full Home Assistant restart (Python modules load once at startup); this is unavoidable for custom integrations. Settings changes (options, reconfigure) only reload the entry.
 - **Sensor Filtering:** `config_flow.py` uses `EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.WATER])`. Keep in mind some custom/scraper water integrations omit `device_class: water`—consider whether future versions should broaden or provide a fallback selector if users report missing sensors.
 

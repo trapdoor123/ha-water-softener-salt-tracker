@@ -31,7 +31,13 @@ async def async_reload_entry(hass: HomeAssistant, entry: SoftenerConfigEntry) ->
 
 async def async_unload_entry(hass: HomeAssistant, entry: SoftenerConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        # Write out any reading still waiting for its delayed save, so it
+        # cannot land later and overwrite what the reloaded entry saves.
+        coordinator = entry.runtime_data
+        await coordinator.store.async_save(coordinator.data_to_save())
+    return unload_ok
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

@@ -3,6 +3,20 @@
 Each `## vX.Y.Z` section below becomes the GitHub Release notes for that
 version when it is published.
 
+## v1.1.1
+
+### Bug fixes
+
+- **No more "Unknown" while the water meter is blank.** The tracker now remembers the last valid water meter reading and uses it whenever the meter has no reading. Daily-updating utility meters, such as Thames Water, often stay blank for hours after a Home Assistant restart; previously the salt sensors showed Unknown until the meter reported again.
+- **Reset salt level** now works while the meter is blank, using its last valid reading. It is only refused if the meter has never reported a reading.
+- **Switching water meters** via Reconfigure now carries your usage over even if the old meter is blank, using its last valid reading.
+- Fixed a rare case where reloading the integration (for example after changing its settings) could later overwrite a newer refill baseline.
+
+### Upgrade notes
+
+- Restart Home Assistant after updating.
+- The tracker needs one reading from your water meter after this update before it can remember it. Until your meter next reports, the salt sensors may still show Unknown; after that, restarts no longer affect them.
+
 ## v1.1.0
 
 ### Changes
