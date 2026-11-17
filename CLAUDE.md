@@ -4,9 +4,9 @@ You are taking over development on **`ha-water-softener-salt-tracker`**, a custo
 
 ## 1. Repository & Release Status
 - **GitHub Repository:** `[https://github.com/trapdoor123/ha-water-softener-salt-tracker](https://github.com/trapdoor123/ha-water-softener-salt-tracker)`
-- **Current Release:** `v1.0.4` (published on `main` and tagged as a GitHub Release for HACS)
+- **Current Release:** `v1.1.0` (published on `main` and tagged as a GitHub Release for HACS)
 - **Integration Domain:** `water_softener_salt_tracker`
-- **Integration Type:** `helper` (`iot_class: calculated`)
+- **Integration Type:** `device` (`iot_class: calculated`) since `v1.1.0` — one device per config entry (per softener). It was `helper` before, which hid the device in the UI.
 - **Release Process:** Releases are automated by `.github/workflows/release.yml`. To release, bump `"version"` in `custom_components/water_softener_salt_tracker/manifest.json`, add a matching `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes), and merge to `main`. The workflow first runs the CI checks (`ci.yml`) and, if they pass, creates the `vX.Y.Z` tag and GitHub Release if that tag does not exist yet. HACS relies on matching manifest versions and release tags to notify users of updates. Do not create tags or releases by hand (cloud Claude Code sessions cannot push tags or create releases anyway).
 
 ## 2. Core Problem & Architecture
@@ -17,14 +17,16 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
     ha-water-softener-salt-tracker/
     ├── custom_components/
     │   └── water_softener_salt_tracker/
-    │       ├── __init__.py       # SoftenerDataCoordinator + HA Store persistence
-    │       ├── button.py         # WaterSoftenerResetButton ("Reset Salt Level")
-    │       ├── config_flow.py    # ConfigFlow + OptionsFlowHandler
+    │       ├── __init__.py       # Entry setup/unload/removal; coordinator stored on entry.runtime_data
+    │       ├── button.py         # WaterSoftenerResetButton ("Reset salt level")
+    │       ├── config_flow.py    # ConfigFlow (user + reconfigure steps) + OptionsFlowHandler
     │       ├── const.py          # Domain constants & default calibration values
+    │       ├── coordinator.py    # SoftenerDataCoordinator, meter reading, HA Store persistence
+    │       ├── entity.py         # SoftenerEntity base: shared DeviceInfo + listener registration
     │       ├── manifest.json     # Integration metadata & version
     │       ├── sensor.py         # 4 diagnostic/tracking sensor entities
     │       └── translations/
-    │           └── en.json       # UI labels for config & options flows, repair issues
+    │           └── en.json       # UI labels for flows, entity names, repair issues
     ├── .github/
     │   └── workflows/
     │       ├── ci.yml            # Lint, tests, hassfest and HACS validation
@@ -47,11 +49,12 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
   - `water_used = max(current_meter_reading - baseline_reading, 0.0)`
   - `salt_remaining_kg = max(salt_capacity - (water_used * (consumption_rate / 1000.0)), 0.0)`
   - `salt_level_pct = max(round((salt_remaining_kg / salt_capacity) * 100, 1), 0.0)`
-- **Entities Exposed (grouped under a single HA Device):**
+- **Config entry data:** `name`, `water_meter_sensor`, `salt_capacity`, `consumption_rate`, and optional `manufacturer` / `model` (shown on the device). Options (`salt_capacity`, `consumption_rate`) override data. The Reconfigure step changes `water_meter_sensor`, `manufacturer` and `model`; switching meters re-bases the stored baseline so the water used since refill carries over.
+- **Entities Exposed (grouped under a single HA Device; names come from `translation_key`s in `translations/en.json`):**
   - `sensor.<name>_water_processed_since_refill` (`SensorDeviceClass.WATER`, `SensorStateClass.TOTAL_INCREASING`, unit: `L`)
-  - `sensor.<name>_salt_remaining` (unit: `kg`)
-  - `sensor.<name>_salt_level` (unit: `%`)
-  - `sensor.<name>_last_refill_date` (`YYYY-MM-DD` string)
+  - `sensor.<name>_salt_remaining` (`SensorDeviceClass.WEIGHT`, `MEASUREMENT`, unit: `kg`)
+  - `sensor.<name>_salt_level` (`MEASUREMENT`, unit: `%`)
+  - `sensor.<name>_last_refill_date` (`SensorDeviceClass.DATE`)
   - `button.<name>_reset_salt_level` (snapshots current water meter reading as `baseline_reading` and sets `last_refill_date` to today)
 
 ## 3. Real-World Testing & Empirical Calibration Context
@@ -64,6 +67,8 @@ Instead of placing ultrasonic or optical distance sensors inside a corrosive bri
 - **`OptionsFlow` Compatibility (Fixed in `v1.0.2`):** In Home Assistant Core 2024.12 and later, `self.config_entry` on `config_entries.OptionsFlow` is a built-in read-only property. Never assign `self.config_entry = config_entry` inside `OptionsFlowHandler.__init__`, as doing so raises an `AttributeError` (`500 Internal Server Error`) when users click the integration's gear/configure button.
 - **Minimum Home Assistant Version:** `2024.12.0`, declared in `hacs.json`. The options flow relies on the built-in `OptionsFlow.config_entry` property, which does not exist in 2024.11 (verified by the test suite). If the minimum changes, update `hacs.json` and `requirements_test_min.txt` together; a test enforces that they match.
 - **Testing & Linting:** Run `pip install -r requirements_test.txt` then `pytest`, and `ruff check .`. CI runs the tests against both the latest and the minimum Home Assistant, plus `hassfest` and HACS validation, on every pull request, weekly, and before each release. Add or update tests with every behaviour change.
+- **Entity IDs Must Stay Stable:** Unique IDs (`<entry_id>_water_processed`, `_salt_remaining`, `_salt_level`, `_last_refill`, `_reset_button`) and the translated entity names determine entity IDs. Changing either renames users' entities on new installs or breaks history, so don't.
+- **Restarts:** Any code update needs a full Home Assistant restart (Python modules load once at startup); this is unavoidable for custom integrations. Settings changes (options, reconfigure) only reload the entry.
 - **Sensor Filtering:** `config_flow.py` uses `EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.WATER])`. Keep in mind some custom/scraper water integrations omit `device_class: water`—consider whether future versions should broaden or provide a fallback selector if users report missing sensors.
 
 ## 5. Planned Roadmap & Feature Backlog

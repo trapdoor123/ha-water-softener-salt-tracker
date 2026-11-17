@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
@@ -221,5 +222,5 @@ async def test_unload(hass: HomeAssistant, entry) -> None:
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert entry.entry_id not in hass.data[DOMAIN]
+    assert entry.state is ConfigEntryState.NOT_LOADED
     assert sensor_state(hass, "salt_level") == "unavailable"

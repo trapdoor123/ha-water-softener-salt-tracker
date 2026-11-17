@@ -1,79 +1,47 @@
 """Sensor platform for Water Softener Salt Tracker."""
 from __future__ import annotations
 
+from datetime import date
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfMass, UnitOfVolume
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
-from . import SoftenerDataCoordinator
-from .const import DOMAIN
+from .coordinator import SoftenerConfigEntry
+from .entity import SoftenerEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SoftenerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensors."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = [
-        WaterSoftenerProcessedSensor(coordinator, entry),
-        WaterSoftenerSaltRemainingSensor(coordinator, entry),
-        WaterSoftenerSaltLevelSensor(coordinator, entry),
-        WaterSoftenerLastRefillSensor(coordinator, entry),
-    ]
-
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            WaterSoftenerProcessedSensor(entry),
+            WaterSoftenerSaltRemainingSensor(entry),
+            WaterSoftenerSaltLevelSensor(entry),
+            WaterSoftenerLastRefillSensor(entry),
+        ]
+    )
 
 
-class BaseSoftenerSensor(SensorEntity):
-    """Base class for softener entities.
-
-    The coordinator tracks the upstream water meter and calls every registered
-    listener when the meter changes or the salt level is reset.
-    """
-
-    _attr_has_entity_name = True
-    _attr_should_poll = False
-
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        self.coordinator = coordinator
-        self.entry = entry
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-            manufacturer="Harvey / Generic",
-            model="Twin-Tank Metered Softener",
-        )
-
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
-        self.coordinator.listeners.append(self.async_write_ha_state)
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Remove callbacks."""
-        if self.async_write_ha_state in self.coordinator.listeners:
-            self.coordinator.listeners.remove(self.async_write_ha_state)
-
-
-class WaterSoftenerProcessedSensor(BaseSoftenerSensor):
+class WaterSoftenerProcessedSensor(SoftenerEntity, SensorEntity):
     """Tracks litres processed since last salt refill."""
 
-    _attr_name = "Water Processed Since Refill"
     _attr_device_class = SensorDeviceClass.WATER
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfVolume.LITERS
 
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
+    def __init__(self, entry: SoftenerConfigEntry) -> None:
+        super().__init__(entry, "water_processed")
         self._attr_unique_id = f"{entry.entry_id}_water_processed"
 
     @property
@@ -84,15 +52,17 @@ class WaterSoftenerProcessedSensor(BaseSoftenerSensor):
         return round(water_used, 1)
 
 
-class WaterSoftenerSaltRemainingSensor(BaseSoftenerSensor):
+class WaterSoftenerSaltRemainingSensor(SoftenerEntity, SensorEntity):
     """Tracks estimated kg of salt remaining."""
 
-    _attr_name = "Salt Remaining"
+    _attr_device_class = SensorDeviceClass.WEIGHT
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfMass.KILOGRAMS
+    _attr_suggested_display_precision = 2
     _attr_icon = "mdi:shaker-outline"
 
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
+    def __init__(self, entry: SoftenerConfigEntry) -> None:
+        super().__init__(entry, "salt_remaining")
         self._attr_unique_id = f"{entry.entry_id}_salt_remaining"
 
     @property
@@ -103,15 +73,16 @@ class WaterSoftenerSaltRemainingSensor(BaseSoftenerSensor):
         return round(remaining, 2)
 
 
-class WaterSoftenerSaltLevelSensor(BaseSoftenerSensor):
+class WaterSoftenerSaltLevelSensor(SoftenerEntity, SensorEntity):
     """Tracks estimated salt level as percentage."""
 
-    _attr_name = "Salt Level"
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 1
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
+    def __init__(self, entry: SoftenerConfigEntry) -> None:
+        super().__init__(entry, "salt_level")
         self._attr_unique_id = f"{entry.entry_id}_salt_level"
 
     @property
@@ -125,16 +96,18 @@ class WaterSoftenerSaltLevelSensor(BaseSoftenerSensor):
         return round((remaining / capacity) * 100, 1)
 
 
-class WaterSoftenerLastRefillSensor(BaseSoftenerSensor):
+class WaterSoftenerLastRefillSensor(SoftenerEntity, SensorEntity):
     """Displays date of last salt refill."""
 
-    _attr_name = "Last Refill Date"
+    _attr_device_class = SensorDeviceClass.DATE
     _attr_icon = "mdi:calendar-check"
 
-    def __init__(self, coordinator: SoftenerDataCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
+    def __init__(self, entry: SoftenerConfigEntry) -> None:
+        super().__init__(entry, "last_refill_date")
         self._attr_unique_id = f"{entry.entry_id}_last_refill"
 
     @property
-    def native_value(self) -> str | None:
-        return self.coordinator.last_refill_date
+    def native_value(self) -> date | None:
+        if self.coordinator.last_refill_date is None:
+            return None
+        return dt_util.parse_date(self.coordinator.last_refill_date)
