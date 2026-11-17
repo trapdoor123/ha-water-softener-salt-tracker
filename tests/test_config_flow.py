@@ -4,7 +4,6 @@ from __future__ import annotations
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.water_softener_salt_tracker.const import (
@@ -16,7 +15,7 @@ from custom_components.water_softener_salt_tracker.const import (
     DOMAIN,
 )
 
-from .conftest import METER, set_meter, setup_entry
+from .conftest import METER, get_device, set_meter, setup_entry
 
 NEW_METER = "sensor.new_water_meter"
 
@@ -121,7 +120,7 @@ async def test_reconfigure_make_and_model(hass: HomeAssistant, entry) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF_MANUFACTURER] == "Harvey"
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     assert device.manufacturer == "Harvey"
     assert device.model == "H20/25"
 
@@ -132,7 +131,7 @@ async def test_reconfigure_make_and_model(hass: HomeAssistant, entry) -> None:
     )
     await hass.async_block_till_done()
     assert CONF_MANUFACTURER not in entry.data
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     assert device.manufacturer is None
 
 

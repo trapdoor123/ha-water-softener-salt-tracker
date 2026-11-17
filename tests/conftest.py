@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 # Importing the integration here makes sure this repository's
@@ -64,3 +65,10 @@ def sensor_state(hass: HomeAssistant, name: str) -> str:
 def storage_key(config_entry: MockConfigEntry) -> str:
     """Return the Store key used for a config entry."""
     return f"{DOMAIN}.storage_{config_entry.entry_id}"
+
+
+def get_device(hass: HomeAssistant, config_entry: MockConfigEntry) -> dr.DeviceEntry:
+    """Return the single device belonging to a config entry."""
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), config_entry.entry_id)
+    assert len(devices) == 1
+    return devices[0]

@@ -16,7 +16,14 @@ from custom_components.water_softener_salt_tracker.const import (
     DOMAIN,
 )
 
-from .conftest import ENTITY_PREFIX, RESET_BUTTON, set_meter, setup_entry, storage_key
+from .conftest import (
+    ENTITY_PREFIX,
+    RESET_BUTTON,
+    get_device,
+    set_meter,
+    setup_entry,
+    storage_key,
+)
 
 ENTITY_IDS = [
     ENTITY_PREFIX + "water_processed_since_refill",
@@ -36,9 +43,7 @@ async def test_one_device_holds_all_entities(hass: HomeAssistant, entry) -> None
     await set_meter(hass, "1000")
     await setup_entry(hass, entry)
 
-    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
-    assert len(devices) == 1
-    device = devices[0]
+    device = get_device(hass, entry)
     assert device.name == "Water Softener"
     assert device.manufacturer is None
     assert device.model is None
@@ -58,7 +63,7 @@ async def test_device_make_and_model(hass: HomeAssistant, entry) -> None:
     await set_meter(hass, "1000")
     await setup_entry(hass, entry)
 
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     assert device.manufacturer == "Harvey"
     assert device.model == "Dual Flo H20/25"
 
@@ -75,7 +80,7 @@ async def test_old_hardcoded_make_is_cleared(hass: HomeAssistant, entry) -> None
     await set_meter(hass, "1000")
     await setup_entry(hass, entry)
 
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     assert device.manufacturer is None
     assert device.model is None
 
